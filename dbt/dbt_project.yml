@@ -1,0 +1,4 @@
+name: 'trading_project'
+version: '1.0'
+profile: 'trading_profile'
+model-paths: ['models']
