@@ -10,14 +10,10 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Установка основных пакетов
+WORKDIR /opt/airflow
+
+COPY requirements.txt .
+
 USER airflow
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir \
-    apache-airflow==2.10.4 \
-    minio==7.2.15 \
-    s3fs==2024.12.0 \
-    fpdf==1.7.2 \
-    dbt-core==1.5.0 \
-    dbt-postgres==1.5.0 \
-    dbt-clickhouse==1.5.0 \
+    pip install --no-cache-dir -r requirements.txt
