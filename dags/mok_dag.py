@@ -3,19 +3,31 @@ import json
 from io import BytesIO
 from pathlib import Path
 from datetime import datetime
+from datetime import timedelta
 from typing import Any
 
 from airflow import DAG
+from airflow.operators.empty import EmptyOperator
+from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 
 from minio import Minio
 
 
-AUTHOR = "saraykinyav"
-
 MINIO_ENDPOINT = "minio:9000"
 MINIO_ACCESS_KEY = Variable.get("minio_access_key")
 MINIO_SECRET_KEY = Variable.get("minio_secret_key")
+
+default_args = {
+    "owner": "i.korsakov",
+    "depends_on_past": True,
+    "start_date": datetime(2025, 11, 14),
+    "email_on_failure": False,
+    "email_on_retry": False,
+    "retries": 1,
+    "catchup": True,
+    "retry_delay": timedelta(minutes=5),
+}
 
 
 def get_storage_options() -> dict:
@@ -55,7 +67,7 @@ def extract_data_into_s3(**context: dict[str, Any]) -> str:
     :return: S3 ключ сохраненного JSON файла.
     """
     # execution_date = context["data_interval_end"].format("YYYY-MM-DD")
-    execution_date = datetime.now().strftime("%Y-%m-%d")
+    execution_date = datetime.now().strftime("%Y-%m-%d:%f")[:-3]
 
     # Подключение к MinIO
     minio_client = get_minio_client()
@@ -85,6 +97,25 @@ def extract_data_into_s3(**context: dict[str, Any]) -> str:
     print(f"data saved to s3://{bucket_name}/{object_name}")
     return object_name
 
-if __name__ == "__main__":
-
-    extract_data_into_s3()
+with DAG(
+    dag_id="test_dag",
+    start_date=datetime(2025, 11, 10),
+    schedule_interval="@hourly",
+    catchup=False,
+    max_active_runs=3,
+) as dag:
+    
+    task_start = EmptyOperator(
+        task_id="start_dag",
+    )
+    
+    task_extract_data_into_s3 = PythonOperator(
+        task_id="extract_data_into_s3",
+        python_callable=extract_data_into_s3,
+    )
+    
+    task_end = EmptyOperator(
+        task_id="end_dag",
+    )
+    
+    task_start >> task_extract_data_into_s3 >> task_end
