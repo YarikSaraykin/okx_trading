@@ -229,7 +229,10 @@ services:
     container_name: clickhouse
     ports:
       - "8123:8123"
-      - "9009:9000"
+      - "9009:9009"
+    environment:
+      CLICKHOUSE_USER: click
+      CLICKHOUSE_PASSWORD: click
     volumes:
       - clickhouse_data:/var/lib/clickhouse
 
